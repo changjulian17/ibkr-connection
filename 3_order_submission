@@ -1,0 +1,328 @@
+#!/usr/bin/env python3
+"""
+Order Submission Utility - Submit orders through IBKR using ib_insync
+
+Allows users to submit various types of orders for forex pairs.
+"""
+
+import sys
+from ib_insync import IB, Forex, MarketOrder, LimitOrder, StopOrder, StopLimitOrder, Order
+
+def connect_to_ibkr(host="127.0.0.1", port=7497, client_id=5):
+    """Connect to IBKR"""
+    ib = IB()
+    try:
+        ib.connect(host, port, clientId=client_id)
+        print("✅ Connected to IBKR!")
+        return ib
+    except Exception as e:
+        print(f"❌ Failed to connect to IBKR: {e}")
+        return None
+
+def get_forex_contract(symbol):
+    """Create and qualify forex contract"""
+    try:
+        contract = Forex(symbol)
+        return contract
+    except Exception as e:
+        print(f"❌ Error creating contract for {symbol}: {e}")
+        return None
+
+def get_current_quote(ib, symbol):
+    """Get current market quote for the symbol"""
+    try:
+        contract = get_forex_contract(symbol)
+        if not contract:
+            return None
+            
+        ib.qualifyContracts(contract)
+        ticker = ib.reqMktData(contract, '', False, False)
+        ib.sleep(2)  # Wait for market data
+        
+        return ticker
+    except Exception as e:
+        print(f"❌ Error getting quote for {symbol}: {e}")
+        return None
+
+def display_quote(ticker, symbol):
+    """Display current market quote"""
+    if not ticker:
+        print(f"❌ No market data available for {symbol}")
+        return
+        
+    print(f"\n📊 Current Market Data for {symbol}:")
+    print("=" * 40)
+    
+    if ticker.bid and ticker.bid > 0:
+        print(f"Bid: {ticker.bid:.5f}")
+    if ticker.ask and ticker.ask > 0:
+        print(f"Ask: {ticker.ask:.5f}")
+    if ticker.last and str(ticker.last).lower() != 'nan':
+        print(f"Last: {ticker.last:.5f}")
+    
+    if ticker.bid and ticker.ask and ticker.bid > 0 and ticker.ask > 0:
+        mid = (ticker.bid + ticker.ask) / 2
+        spread = ticker.ask - ticker.bid
+        print(f"Mid: {mid:.5f}")
+        print(f"Spread: {spread:.5f}")
+    
+    print("=" * 40)
+
+def get_symbol_input():
+    """Get forex symbol from user"""
+    g10_pairs = [
+        "EURUSD", "USDJPY", "GBPUSD", "USDCHF", 
+        "AUDUSD", "USDCAD", "NZDUSD", "USDSGD",
+        "EURGBP", "EURJPY", "GBPJPY"
+    ]
+    
+    print("\n💱 Select forex pair:")
+    print("=" * 30)
+    
+    for i, pair in enumerate(g10_pairs, 1):
+        print(f"{i:2d}. {pair}")
+    print("12. Enter custom forex pair")
+    
+    while True:
+        try:
+            choice = int(input("\nEnter choice (1-12): ").strip())
+            if 1 <= choice <= 11:
+                return g10_pairs[choice - 1]
+            elif choice == 12:
+                while True:
+                    symbol = input("Enter forex pair (e.g., USDSGD): ").strip().upper()
+                    if len(symbol) == 6:
+                        return symbol
+                    else:
+                        print("❌ Forex symbol should be 6 characters")
+            else:
+                print("❌ Please enter a number between 1-12")
+        except ValueError:
+            print("❌ Please enter a valid number")
+
+def get_order_side():
+    """Get order side (BUY/SELL)"""
+    print("\n📈 Order Side:")
+    print("1. BUY")
+    print("2. SELL")
+    
+    while True:
+        try:
+            choice = int(input("\nEnter choice (1-2): ").strip())
+            if choice == 1:
+                return "BUY"
+            elif choice == 2:
+                return "SELL"
+            else:
+                print("❌ Please enter 1 or 2")
+        except ValueError:
+            print("❌ Please enter a valid number")
+
+def get_quantity():
+    """Get order quantity"""
+    while True:
+        try:
+            quantity = float(input("\n💰 Enter quantity (e.g., 10000 for 10K units): ").strip())
+            if quantity > 0:
+                return int(quantity)
+            else:
+                print("❌ Quantity must be positive")
+        except ValueError:
+            print("❌ Please enter a valid number")
+
+def get_order_type():
+    """Get order type"""
+    print("\n📋 Order Type:")
+    print("1. Market Order (immediate execution)")
+    print("2. Limit Order (specific price)")
+    print("3. Stop Order (stop loss)")
+    print("4. Stop Limit Order (stop with limit)")
+    
+    while True:
+        try:
+            choice = int(input("\nEnter choice (1-4): ").strip())
+            if 1 <= choice <= 4:
+                return choice
+            else:
+                print("❌ Please enter a number between 1-4")
+        except ValueError:
+            print("❌ Please enter a valid number")
+
+def get_price(prompt):
+    """Get price from user"""
+    while True:
+        try:
+            price = float(input(f"\n💲 {prompt}: ").strip())
+            if price > 0:
+                return price
+            else:
+                print("❌ Price must be positive")
+        except ValueError:
+            print("❌ Please enter a valid price")
+
+def create_order(order_type, action, quantity, **kwargs):
+    """Create order based on type"""
+    if order_type == 1:  # Market Order
+        return MarketOrder(action, quantity)
+    elif order_type == 2:  # Limit Order
+        return LimitOrder(action, quantity, kwargs['limit_price'])
+    elif order_type == 3:  # Stop Order
+        return StopOrder(action, quantity, kwargs['stop_price'])
+    elif order_type == 4:  # Stop Limit Order
+        return StopLimitOrder(action, quantity, kwargs['stop_price'], kwargs['limit_price'])
+
+def confirm_order(symbol, action, quantity, order_type_name, **order_details):
+    """Display order confirmation"""
+    print("\n" + "="*50)
+    print("📋 ORDER CONFIRMATION")
+    print("="*50)
+    print(f"Symbol:     {symbol}")
+    print(f"Action:     {action}")
+    print(f"Quantity:   {quantity:,}")
+    print(f"Order Type: {order_type_name}")
+    
+    for key, value in order_details.items():
+        if value:
+            print(f"{key.replace('_', ' ').title()}: {value}")
+    
+    print("="*50)
+    
+    while True:
+        confirm = input("\n✅ Confirm order? (y/n): ").strip().lower()
+        if confirm in ['y', 'yes']:
+            return True
+        elif confirm in ['n', 'no']:
+            return False
+        else:
+            print("❌ Please enter y or n")
+
+def submit_order(ib, contract, order):
+    """Submit order to IBKR"""
+    try:
+        print("\n📤 Submitting order...")
+        trade = ib.placeOrder(contract, order)
+        
+        # Wait for order status
+        ib.sleep(2)
+        
+        print(f"✅ Order submitted successfully!")
+        print(f"Order ID: {trade.order.orderId}")
+        print(f"Status: {trade.orderStatus.status}")
+        
+        return trade
+    except Exception as e:
+        print(f"❌ Error submitting order: {e}")
+        return None
+
+def main():
+    print("🚀 IBKR Order Submission Utility")
+    print("=" * 50)
+    
+    # Connect to IBKR
+    ib = connect_to_ibkr()
+    if not ib:
+        return
+    
+    try:
+        # Get symbol
+        symbol = get_symbol_input()
+        
+        # Get current quote
+        print(f"\n⏳ Getting current quote for {symbol}...")
+        ticker = get_current_quote(ib, symbol)
+        display_quote(ticker, symbol)
+        
+        # Get order details
+        action = get_order_side()
+        quantity = get_quantity()
+        order_type = get_order_type()
+        
+        order_type_names = {
+            1: "Market Order",
+            2: "Limit Order", 
+            3: "Stop Order",
+            4: "Stop Limit Order"
+        }
+        
+        order_details = {}
+        
+        # Get additional parameters based on order type
+        if order_type == 2:  # Limit Order
+            limit_price = get_price("Enter limit price")
+            order_details['limit_price'] = limit_price
+        elif order_type == 3:  # Stop Order
+            stop_price = get_price("Enter stop price")
+            order_details['stop_price'] = stop_price
+        elif order_type == 4:  # Stop Limit Order
+            stop_price = get_price("Enter stop price")
+            limit_price = get_price("Enter limit price")
+            order_details['stop_price'] = stop_price
+            order_details['limit_price'] = limit_price
+        
+        # Confirm order
+        if not confirm_order(symbol, action, quantity, order_type_names[order_type], **order_details):
+            print("❌ Order cancelled by user")
+            return
+        
+        # Create contract and order
+        contract = get_forex_contract(symbol)
+        if not contract:
+            print("❌ Failed to create contract")
+            return
+            
+        ib.qualifyContracts(contract)
+        
+        order = create_order(order_type, action, quantity, **order_details)
+        
+        # Submit order
+        trade = submit_order(ib, contract, order)
+        
+        if trade:
+            print("\n📊 Order Details:")
+            print(f"Contract: {trade.contract}")
+            print(f"Order: {trade.order}")
+            print(f"Status: {trade.orderStatus}")
+    
+    except Exception as e:
+        print(f"❌ Error in main execution: {e}")
+    
+    finally:
+        ib.disconnect()
+        print("\n📴 Disconnected from IBKR")
+
+def show_order_info():
+    """Show order information"""
+    print("\n📚 Order Types Information:")
+    print("=" * 50)
+    print("🎯 Market Order: Executes immediately at current market price")
+    print("💰 Limit Order: Executes only at specified price or better")
+    print("🛑 Stop Order: Becomes market order when stop price is reached")
+    print("🎪 Stop Limit: Becomes limit order when stop price is reached")
+    print("=" * 50)
+    print("⚠️  WARNING: This will submit real orders to IBKR!")
+    print("⚠️  Make sure you understand the risks before proceeding!")
+    print("⚠️  Use paper trading account for testing!")
+
+if __name__ == "__main__":
+    show_order_info()
+    
+    # Safety confirmation
+    print("\n🚨 IMPORTANT SAFETY CHECK 🚨")
+    confirm = input("Are you using a PAPER TRADING account? (y/n): ").strip().lower()
+    if confirm not in ['y', 'yes']:
+        print("❌ Please use paper trading account for testing!")
+        print("❌ Exiting for safety...")
+        sys.exit(1)
+    
+    main()
+    
+    # Ask if user wants to submit another order
+    while True:
+        again = input("\n🔄 Submit another order? (y/n): ").strip().lower()
+        if again in ['y', 'yes']:
+            main()
+        elif again in ['n', 'no']:
+            print("👋 Goodbye!")
+            break
+        else:
+            print("❌ Please enter y or n")

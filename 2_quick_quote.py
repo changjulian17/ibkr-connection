@@ -58,8 +58,8 @@ def get_all_g10_quotes_threaded():
         "AUDUSD", "USDCAD", "NZDUSD", "USDSGD"
     ]
     
-    print("\n💱 Getting quotes for all G10 currency pairs (threaded)...")
-    print("⚡ Starting with cross pairs first for better data!")
+    # print("\n💱 Getting quotes for all G10 currency pairs (threaded)...")
+    # print("⚡ Starting with cross pairs first for better data!")
     
     quotes = {}
     
@@ -76,7 +76,7 @@ def get_all_g10_quotes_threaded():
             try:
                 pair, ticker = future.result()
                 quotes[pair] = ticker
-                print(f"✅ Got quote for {pair}")
+                # print(f"✅ Got quote for {pair}")
             except Exception as e:
                 print(f"❌ Error processing future: {e}")
     
@@ -121,8 +121,8 @@ def get_all_g10_quotes_single_connection(ib):
         "AUDUSD", "USDCAD", "NZDUSD", "USDSGD"
     ]
     
-    print("\n💱 Getting quotes for all G10 currency pairs (single connection)...")
-    print("⏳ Starting with cross pairs first for better data...")
+    # print("\n💱 Getting quotes for all G10 currency pairs (single connection)...")
+    # print("⏳ Starting with cross pairs first for better data...")
     
     quotes = {}
     
@@ -285,8 +285,8 @@ def main():
     port = 7497
     client_id = 4
 
-    print("🚀 G10 Forex Quote Table (ib_insync)")
-    print("=" * 50)
+    # print("🚀 G10 Forex Quote Table (ib_insync)")
+    # print("=" * 50)
 
     # Choose method
     method = choose_method()
@@ -330,20 +330,20 @@ def main():
 
 def show_forex_info():
     """Show forex trading information"""
-    print("\n📚 G10 Currency Information:")
-    print("=" * 50)
-    print("🇺🇸 USD - US Dollar")
-    print("🇪🇺 EUR - Euro") 
-    print("🇯🇵 JPY - Japanese Yen")
-    print("🇬🇧 GBP - British Pound")
-    print("🇨🇭 CHF - Swiss Franc")
-    print("🇦🇺 AUD - Australian Dollar")
-    print("🇨🇦 CAD - Canadian Dollar")
-    print("🇳🇿 NZD - New Zealand Dollar")
-    print("🇸🇬 SGD - Singapore Dollar")
-    print("=" * 50)
-    print("💡 Forex markets trade 24/5 (Sunday 5PM - Friday 5PM EST)")
-    print("💡 Threaded method is faster but uses more connections")
+    # print("\n📚 G10 Currency Information:")
+    # print("=" * 50)
+    # print("🇺🇸 USD - US Dollar")
+    # print("🇪🇺 EUR - Euro") 
+    # print("🇯🇵 JPY - Japanese Yen")
+    # print("🇬🇧 GBP - British Pound")
+    # print("🇨🇭 CHF - Swiss Franc")
+    # print("🇦🇺 AUD - Australian Dollar")
+    # print("🇨🇦 CAD - Canadian Dollar")
+    # print("🇳🇿 NZD - New Zealand Dollar")
+    # print("🇸🇬 SGD - Singapore Dollar")
+    # print("=" * 50)
+    # print("💡 Forex markets trade 24/5 (Sunday 5PM - Friday 5PM EST)")
+    # print("💡 Threaded method is faster but uses more connections")
 
 if __name__ == "__main__":
     show_forex_info()
