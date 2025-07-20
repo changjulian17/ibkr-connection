@@ -6,13 +6,28 @@ Shows all G10 currency pairs in a table using threading for faster quotes.
 """
 
 import sys
+import os
 import threading
 import time
 import asyncio
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# Add the parent directory to the path so we can import from config and src
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from ib_insync import IB, Forex
 
-def get_single_quote(pair, host="127.0.0.1", port=7497, base_client_id=100):
+# Import settings
+from config.settings import (
+    DEFAULT_HOST,
+    PAPER_TRADING_PORT,
+    DEFAULT_CLIENT_ID,
+    TABLE_WIDTH,
+    MARKET_DATA_TIMEOUT,
+    CONNECTION_TIMEOUT
+)
+
+def get_single_quote(pair, host=DEFAULT_HOST, port=PAPER_TRADING_PORT, base_client_id=DEFAULT_CLIENT_ID):
     """Get quote for a single currency pair using its own connection with event loop"""
     # Create new event loop for this thread
     loop = asyncio.new_event_loop()
@@ -27,7 +42,7 @@ def get_single_quote(pair, host="127.0.0.1", port=7497, base_client_id=100):
         contract = Forex(pair)
         ib.qualifyContracts(contract)
         ticker = ib.reqMktData(contract, '', False, False)
-        ib.sleep(5)  # Increased wait time for better data
+        ib.sleep(MARKET_DATA_TIMEOUT)  # Use configured timeout
         
         ib.disconnect()
         return pair, ticker
@@ -58,9 +73,6 @@ def get_all_g10_quotes_threaded():
         "AUDUSD", "USDCAD", "NZDUSD", "USDSGD"
     ]
     
-    # print("\n💱 Getting quotes for all G10 currency pairs (threaded)...")
-    # print("⚡ Starting with cross pairs first for better data!")
-    
     quotes = {}
     
     # Use ThreadPoolExecutor with fewer workers to avoid overwhelming IBKR
@@ -76,7 +88,6 @@ def get_all_g10_quotes_threaded():
             try:
                 pair, ticker = future.result()
                 quotes[pair] = ticker
-                # print(f"✅ Got quote for {pair}")
             except Exception as e:
                 print(f"❌ Error processing future: {e}")
     
@@ -87,12 +98,12 @@ def get_all_g10_quotes_threaded():
         "EURGBP", "EURJPY", "GBPJPY"
     ]
     
-    # Display table
-    print("\n" + "="*80)
+    # Display table using configured width
+    print("\n" + "="*TABLE_WIDTH)
     print("📊 G10 CURRENCY PAIRS - LIVE QUOTES (THREADED)")
-    print("="*80)
+    print("="*TABLE_WIDTH)
     print(f"{'Pair':<8} {'Bid':<10} {'Ask':<10} {'Last':<10} {'Close':<10} {'Spread':<8}")
-    print("-"*80)
+    print("-"*TABLE_WIDTH)
     
     for pair in display_order:
         ticker = quotes.get(pair)
@@ -107,7 +118,7 @@ def get_all_g10_quotes_threaded():
         else:
             print(f"{pair:<8} {'N/A':<10} {'N/A':<10} {'N/A':<10} {'N/A':<10} {'N/A':<8}")
     
-    print("="*80)
+    print("="*TABLE_WIDTH)
     return quotes
 
 def get_all_g10_quotes_single_connection(ib):
@@ -120,9 +131,6 @@ def get_all_g10_quotes_single_connection(ib):
         "EURUSD", "USDJPY", "GBPUSD", "USDCHF", 
         "AUDUSD", "USDCAD", "NZDUSD", "USDSGD"
     ]
-    
-    # print("\n💱 Getting quotes for all G10 currency pairs (single connection)...")
-    # print("⏳ Starting with cross pairs first for better data...")
     
     quotes = {}
     
@@ -156,12 +164,12 @@ def get_all_g10_quotes_single_connection(ib):
         "EURGBP", "EURJPY", "GBPJPY"
     ]
     
-    # Display table
-    print("\n" + "="*80)
+    # Display table using configured width
+    print("\n" + "="*TABLE_WIDTH)
     print("📊 G10 CURRENCY PAIRS - LIVE QUOTES (SINGLE CONNECTION)")
-    print("="*80)
+    print("="*TABLE_WIDTH)
     print(f"{'Pair':<8} {'Bid':<10} {'Ask':<10} {'Last':<10} {'Close':<10} {'Spread':<8}")
-    print("-"*80)
+    print("-"*TABLE_WIDTH)
     
     for pair in display_order:
         ticker = quotes.get(pair)
@@ -176,7 +184,7 @@ def get_all_g10_quotes_single_connection(ib):
         else:
             print(f"{pair:<8} {'N/A':<10} {'N/A':<10} {'N/A':<10} {'N/A':<10} {'N/A':<8}")
     
-    print("="*80)
+    print("="*TABLE_WIDTH)
     return quotes
 
 def get_detailed_quote(ib, symbol):
@@ -185,7 +193,7 @@ def get_detailed_quote(ib, symbol):
         contract = Forex(symbol)
         ib.qualifyContracts(contract)
         ticker = ib.reqMktData(contract, '', False, False)
-        ib.sleep(3)
+        ib.sleep(MARKET_DATA_TIMEOUT)
 
         # Display formatted quote
         print(f"\n📈 Detailed Quote for {symbol}:")
@@ -264,13 +272,9 @@ def get_symbol_choice():
 
 def choose_method():
     """Let user choose between threaded or single connection method"""
-    # print("\n🚀 Choose quote method:")
-    # print("1. Threaded (Fast - multiple connections)")
-    # print("2. Single connection (Slower but more reliable)")
-    
     while True:
         try:
-            choice = 1 # int(input("\nEnter choice (1-2): ").strip())
+            choice = 1  # Default to threaded for speed
             if choice == 1:
                 return "threaded"
             elif choice == 2:
@@ -281,12 +285,9 @@ def choose_method():
             print("❌ Please enter a valid number")
 
 def main():
-    host = "127.0.0.1"
-    port = 7497
-    client_id = 4
-
-    # print("🚀 G10 Forex Quote Table (ib_insync)")
-    # print("=" * 50)
+    # Use settings for connection parameters
+    print("🚀 G10 Forex Quote Table (ib_insync)")
+    print("=" * 50)
 
     # Choose method
     method = choose_method()
@@ -299,27 +300,16 @@ def main():
             end_time = time.time()
             print(f"⚡ Threaded quotes completed in {end_time - start_time:.2f} seconds")
             
-            # For detailed quote, create a new connection
-            # symbol = get_symbol_choice()
-            # if symbol:
-            #     ib = IB()
-            #     ib.connect(host, port, clientId=client_id)
-            #     get_detailed_quote(ib, symbol)
-            #     ib.disconnect()
         else:
             # Use single connection approach
             ib = IB()
-            ib.connect(host, port, clientId=client_id)
+            ib.connect(DEFAULT_HOST, PAPER_TRADING_PORT, clientId=DEFAULT_CLIENT_ID)
             print("✅ Connected to IBKR!")
             
             start_time = time.time()
             quotes = get_all_g10_quotes_single_connection(ib)
             end_time = time.time()
             print(f"🐌 Single connection quotes completed in {end_time - start_time:.2f} seconds")
-            
-            # symbol = get_symbol_choice()
-            # if symbol:
-            #     get_detailed_quote(ib, symbol)
             
             ib.disconnect()
 
@@ -330,33 +320,9 @@ def main():
 
 def show_forex_info():
     """Show forex trading information"""
-    # print("\n📚 G10 Currency Information:")
-    # print("=" * 50)
-    # print("🇺🇸 USD - US Dollar")
-    # print("🇪🇺 EUR - Euro") 
-    # print("🇯🇵 JPY - Japanese Yen")
-    # print("🇬🇧 GBP - British Pound")
-    # print("🇨🇭 CHF - Swiss Franc")
-    # print("🇦🇺 AUD - Australian Dollar")
-    # print("🇨🇦 CAD - Canadian Dollar")
-    # print("🇳🇿 NZD - New Zealand Dollar")
-    # print("🇸🇬 SGD - Singapore Dollar")
-    # print("=" * 50)
-    # print("💡 Forex markets trade 24/5 (Sunday 5PM - Friday 5PM EST)")
-    # print("💡 Threaded method is faster but uses more connections")
+    pass  # Keep this minimal for cleaner output
 
 if __name__ == "__main__":
     show_forex_info()
     print("\n")
     main()
-    
-    # Ask if user wants to run again
-    # while True:
-    #     again = input("\n🔄 Run forex quotes again? (y/n): ").strip().lower()
-    #     if again in ['y', 'yes']:
-    #         main()
-    #     elif again in ['n', 'no']:
-    #         print("👋 Goodbye!")
-    #         break
-    #     else:
-    #         print("❌ Please enter y or n")

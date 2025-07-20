@@ -7,6 +7,9 @@ Allows users to submit various types of orders for forex pairs.
 
 import sys
 from ib_insync import IB, Forex, MarketOrder, LimitOrder, StopOrder, StopLimitOrder, Order
+from src.forex_order_workflow import forex_order_workflow
+from src.stock_order_workflow import stock_order_workflow
+from src.option_order_workflow import option_order_workflow
 
 def connect_to_ibkr(host="127.0.0.1", port=7497, client_id=5):
     """Connect to IBKR"""
@@ -218,77 +221,17 @@ def main():
     print("🚀 IBKR Order Submission Utility")
     print("=" * 50)
     
-    # Connect to IBKR
-    ib = connect_to_ibkr()
-    if not ib:
-        return
-    
-    try:
-        # Get symbol
-        symbol = get_symbol_input()
-        
-        # Get current quote
-        print(f"\n⏳ Getting current quote for {symbol}...")
-        ticker = get_current_quote(ib, symbol)
-        display_quote(ticker, symbol)
-        
-        # Get order details
-        action = get_order_side()
-        quantity = get_quantity()
-        order_type = get_order_type()
-        
-        order_type_names = {
-            1: "Market Order",
-            2: "Limit Order", 
-            3: "Stop Order",
-            4: "Stop Limit Order"
-        }
-        
-        order_details = {}
-        
-        # Get additional parameters based on order type
-        if order_type == 2:  # Limit Order
-            limit_price = get_price("Enter limit price")
-            order_details['limit_price'] = limit_price
-        elif order_type == 3:  # Stop Order
-            stop_price = get_price("Enter stop price")
-            order_details['stop_price'] = stop_price
-        elif order_type == 4:  # Stop Limit Order
-            stop_price = get_price("Enter stop price")
-            limit_price = get_price("Enter limit price")
-            order_details['stop_price'] = stop_price
-            order_details['limit_price'] = limit_price
-        
-        # Confirm order
-        if not confirm_order(symbol, action, quantity, order_type_names[order_type], **order_details):
-            print("❌ Order cancelled by user")
-            return
-        
-        # Create contract and order
-        contract = get_forex_contract(symbol)
-        if not contract:
-            print("❌ Failed to create contract")
-            return
-            
-        ib.qualifyContracts(contract)
-        
-        order = create_order(order_type, action, quantity, **order_details)
-        
-        # Submit order
-        trade = submit_order(ib, contract, order)
-        
-        if trade:
-            print("\n📊 Order Details:")
-            print(f"Contract: {trade.contract}")
-            print(f"Order: {trade.order}")
-            print(f"Status: {trade.orderStatus}")
-    
-    except Exception as e:
-        print(f"❌ Error in main execution: {e}")
-    
-    finally:
-        ib.disconnect()
-        print("\n📴 Disconnected from IBKR")
+    print("Select instrument type:")
+    print("1. Forex\n2. Stock\n3. Option")
+    choice = input("Enter choice: ").strip()
+    if choice == "1":
+        forex_order_workflow()
+    elif choice == "2":
+        stock_order_workflow()
+    elif choice == "3":
+        option_order_workflow()
+    else:
+        print("Invalid choice.")
 
 def show_order_info():
     """Show order information"""
