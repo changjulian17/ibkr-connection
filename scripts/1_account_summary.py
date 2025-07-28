@@ -12,19 +12,30 @@ This script demonstrates how to:
 Make sure TWS or IB Gateway is running.
 """
 
+import sys
+import os
+# Add the parent directory to the path so we can import from config and src
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from ib_insync import IB
 import pandas as pd
 
-def main():
-    host = "127.0.0.1"
-    port = 7497
-    client_id = 5
+# Import settings
+from config.settings import (
+    DEFAULT_HOST,
+    PAPER_TRADING_PORT,
+    DEFAULT_CLIENT_ID,
+    KEY_ACCOUNT_METRICS,
+    DEFAULT_CURRENCY,
+    TABLE_WIDTH
+)
 
+def main():
     print("📊 IBKR Account Summary (ib_insync)...")
 
     ib = IB()
     try:
-        ib.connect(host, port, clientId=client_id)
+        ib.connect(DEFAULT_HOST, PAPER_TRADING_PORT, clientId=DEFAULT_CLIENT_ID)
         print("✅ Connected to IBKR!")
     except Exception as e:
         print(f"❌ Failed to connect to IBKR: {e}")
@@ -39,20 +50,10 @@ def main():
         print("📊 ACCOUNT SUMMARY")
         print("="*60)
         
-        # Key metrics to display
-        key_metrics = [
-            'TotalCashValue',
-            'NetLiquidation', 
-            'BuyingPower',
-            'AvailableFunds',
-            'GrossPositionValue',
-            'UnrealizedPnL',
-            'RealizedPnL'
-        ]
-        
-        for metric in key_metrics:
+        # Use configured key metrics instead of hardcoded list
+        for metric in KEY_ACCOUNT_METRICS:
             for av in account_values:
-                if av.tag == metric and av.currency == 'USD':
+                if av.tag == metric and av.currency == DEFAULT_CURRENCY:
                     print(f"{metric:20}: ${float(av.value):>15,.2f}")
         print("="*60)
     else:
@@ -83,23 +84,23 @@ def main():
 
     # Get open orders
     print("\n📋 Getting open orders...")
-    open_orders = ib.openOrders()
+    open_trades = ib.openTrades()
     
-    if open_orders:
+    if open_trades:
         print("\n" + "="*90)
         print("📋 OPEN ORDERS")
         print("="*90)
         print(f"{'Order ID':<10} {'Symbol':<10} {'Action':<6} {'Quantity':<10} {'Type':<10} {'Price':<10} {'Status':<12}")
         print("-"*90)
         
-        for order in open_orders:
-            order_id = order.order.orderId
-            symbol = order.contract.symbol
-            action = order.order.action
-            quantity = order.order.totalQuantity
-            order_type = order.order.orderType
-            price = order.order.lmtPrice if order.order.lmtPrice else order.order.auxPrice
-            status = order.orderStatus.status
+        for trade in open_trades:
+            order_id = trade.order.orderId
+            symbol = trade.contract.symbol
+            action = trade.order.action
+            quantity = trade.order.totalQuantity
+            order_type = trade.order.orderType
+            price = trade.order.lmtPrice if trade.order.lmtPrice else trade.order.auxPrice
+            status = trade.orderStatus.status
             
             print(f"{order_id:<10} {symbol:<10} {action:<6} {quantity:<10.0f} {order_type:<10} ${price:<9.2f} {status:<12}")
         print("="*90)
@@ -111,11 +112,11 @@ def main():
     trades = ib.trades()
     
     if trades:
-        print("\n" + "="*100)
+        print("\n" + "="*TABLE_WIDTH)
         print("🔄 RECENT TRADES")
-        print("="*100)
+        print("="*TABLE_WIDTH)
         print(f"{'Order ID':<10} {'Symbol':<10} {'Action':<6} {'Quantity':<10} {'Status':<12} {'Filled':<10} {'Remaining':<10}")
-        print("-"*100)
+        print("-"*TABLE_WIDTH)
         
         for trade in trades[-10:]:  # Show last 10 trades
             order_id = trade.order.orderId
@@ -127,7 +128,7 @@ def main():
             remaining = trade.orderStatus.remaining
             
             print(f"{order_id:<10} {symbol:<10} {action:<6} {quantity:<10.0f} {status:<12} {filled:<10.0f} {remaining:<10.0f}")
-        print("="*100)
+        print("="*TABLE_WIDTH)
     else:
         print("❌ No trades found")
 
@@ -146,7 +147,7 @@ def main():
     print("\n📊 SUMMARY STATISTICS")
     print("="*50)
     print(f"🔢 Total Positions: {len(positions)}")
-    print(f"📋 Open Orders: {len(open_orders)}")
+    print(f"📋 Open Orders: {len(open_trades)}")
     print(f"🔄 Total Trades: {len(trades)}")
     print("="*50)
 
